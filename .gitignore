@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Database file
+*.db
+*.sqlite3
+
+# PDF files
+*.pdf
+
+# Environment files
+.env
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# Log files
+*.log
