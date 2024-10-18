@@ -1,0 +1,199 @@
+import sqlite3
+import tkinter as tk
+from tkinter import messagebox
+from fpdf import FPDF
+
+# Conectando ao banco de dados SQLite
+conn = sqlite3.connect('horarios.db')
+cursor = conn.cursor()
+
+# Criação de tabelas
+def criar_tabelas():
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS professores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        aulas_por_dia INTEGER,
+        aulas_por_semana INTEGER
+    )''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS turmas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ano TEXT NOT NULL,
+        serie TEXT NOT NULL
+    )''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS disciplinas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        id_professor INTEGER,
+        id_turma INTEGER,
+        FOREIGN KEY (id_professor) REFERENCES professores (id),
+        FOREIGN KEY (id_turma) REFERENCES turmas (id)
+    )''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS horarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_turma INTEGER,
+        id_professor INTEGER,
+        id_disciplina INTEGER,
+        dia TEXT,
+        hora_inicio TEXT,
+        hora_fim TEXT,
+        FOREIGN KEY (id_turma) REFERENCES turmas (id),
+        FOREIGN KEY (id_professor) REFERENCES professores (id),
+        FOREIGN KEY (id_disciplina) REFERENCES disciplinas (id)
+    )''')
+
+    conn.commit()
+
+# Funções para cadastros
+def cadastrar_professor(nome, aulas_por_dia, aulas_por_semana):
+    cursor.execute('''
+    INSERT INTO professores (nome, aulas_por_dia, aulas_por_semana)
+    VALUES (?, ?, ?)
+    ''', (nome, aulas_por_dia, aulas_por_semana))
+    conn.commit()
+    messagebox.showinfo("Sucesso", "Professor cadastrado com sucesso!")
+
+def cadastrar_turma(ano, serie):
+    cursor.execute('''
+    INSERT INTO turmas (ano, serie)
+    VALUES (?, ?)
+    ''', (ano, serie))
+    conn.commit()
+    messagebox.showinfo("Sucesso", "Turma cadastrada com sucesso!")
+
+def cadastrar_disciplina(nome, id_professor, id_turma):
+    cursor.execute('''
+    INSERT INTO disciplinas (nome, id_professor, id_turma)
+    VALUES (?, ?, ?)
+    ''', (nome, id_professor, id_turma))
+    conn.commit()
+    messagebox.showinfo("Sucesso", "Disciplina cadastrada com sucesso!")
+
+# Função para gerar horários automáticos (exemplo simples)
+def gerar_horarios():
+    cursor.execute('''
+    SELECT professores.id, turmas.id, disciplinas.id 
+    FROM professores, turmas, disciplinas
+    WHERE professores.id = disciplinas.id_professor
+    AND turmas.id = disciplinas.id_turma
+    ''')
+
+    resultados = cursor.fetchall()
+    dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
+    hora_inicio = "08:00"
+    hora_fim = "09:00"
+    
+    for i, (id_professor, id_turma, id_disciplina) in enumerate(resultados):
+        dia = dias[i % len(dias)]
+        cursor.execute('''
+        INSERT INTO horarios (id_professor, id_turma, id_disciplina, dia, hora_inicio, hora_fim)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''', (id_professor, id_turma, id_disciplina, dia, hora_inicio, hora_fim))
+        conn.commit()
+
+    messagebox.showinfo("Sucesso", "Horários gerados com sucesso!")
+
+# Função para exportar os horários em PDF
+def exportar_pdf():
+    pdf = FPDF()
+    pdf.add_page()
+
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(200, 10, 'Horário Semanal', ln=True, align='C')
+
+    cursor.execute('''
+    SELECT professores.nome, turmas.ano, turmas.serie, disciplinas.nome, horarios.dia, horarios.hora_inicio, horarios.hora_fim
+    FROM horarios
+    JOIN professores ON horarios.id_professor = professores.id
+    JOIN turmas ON horarios.id_turma = turmas.id
+    JOIN disciplinas ON horarios.id_disciplina = disciplinas.id
+    ''')
+
+    resultados = cursor.fetchall()
+    pdf.set_font('Arial', '', 12)
+    
+    for (prof_nome, turma_ano, turma_serie, disc_nome, dia, hora_inicio, hora_fim) in resultados:
+        pdf.cell(200, 10, f'Professor: {prof_nome} - Turma: {turma_ano}/{turma_serie} - Disciplina: {disc_nome} - Dia: {dia} - {hora_inicio} - {hora_fim}', ln=True)
+
+    pdf_file = "horarios.pdf"
+    pdf.output(pdf_file)
+
+    messagebox.showinfo("Sucesso", f"Horários exportados para {pdf_file}")
+
+# Interface Gráfica com Tkinter
+def interface_grafica():
+    janela = tk.Tk()
+    janela.title("Organização de Horários")
+
+    # Frame para cadastro de professores
+    frame_professores = tk.Frame(janela)
+    frame_professores.pack(pady=10)
+    
+    tk.Label(frame_professores, text="Nome do Professor:").pack(side=tk.LEFT)
+    nome_professor_entry = tk.Entry(frame_professores)
+    nome_professor_entry.pack(side=tk.LEFT)
+
+    tk.Label(frame_professores, text="Aulas por Dia:").pack(side=tk.LEFT)
+    aulas_dia_entry = tk.Entry(frame_professores)
+    aulas_dia_entry.pack(side=tk.LEFT)
+
+    tk.Label(frame_professores, text="Aulas por Semana:").pack(side=tk.LEFT)
+    aulas_semana_entry = tk.Entry(frame_professores)
+    aulas_semana_entry.pack(side=tk.LEFT)
+
+    tk.Button(frame_professores, text="Cadastrar Professor", command=lambda: cadastrar_professor(
+        nome_professor_entry.get(), aulas_dia_entry.get(), aulas_semana_entry.get()
+    )).pack(side=tk.LEFT)
+
+    # Frame para cadastro de turmas
+    frame_turmas = tk.Frame(janela)
+    frame_turmas.pack(pady=10)
+
+    tk.Label(frame_turmas, text="Ano:").pack(side=tk.LEFT)
+    ano_turma_entry = tk.Entry(frame_turmas)
+    ano_turma_entry.pack(side=tk.LEFT)
+
+    tk.Label(frame_turmas, text="Série:").pack(side=tk.LEFT)
+    serie_turma_entry = tk.Entry(frame_turmas)
+    serie_turma_entry.pack(side=tk.LEFT)
+
+    tk.Button(frame_turmas, text="Cadastrar Turma", command=lambda: cadastrar_turma(
+        ano_turma_entry.get(), serie_turma_entry.get()
+    )).pack(side=tk.LEFT)
+
+    # Frame para cadastro de disciplinas
+    frame_disciplinas = tk.Frame(janela)
+    frame_disciplinas.pack(pady=10)
+
+    tk.Label(frame_disciplinas, text="Nome da Disciplina:").pack(side=tk.LEFT)
+    nome_disciplina_entry = tk.Entry(frame_disciplinas)
+    nome_disciplina_entry.pack(side=tk.LEFT)
+
+    tk.Label(frame_disciplinas, text="ID Professor:").pack(side=tk.LEFT)
+    id_professor_entry = tk.Entry(frame_disciplinas)
+    id_professor_entry.pack(side=tk.LEFT)
+
+    tk.Label(frame_disciplinas, text="ID Turma:").pack(side=tk.LEFT)
+    id_turma_entry = tk.Entry(frame_disciplinas)
+    id_turma_entry.pack(side=tk.LEFT)
+
+    tk.Button(frame_disciplinas, text="Cadastrar Disciplina", command=lambda: cadastrar_disciplina(
+        nome_disciplina_entry.get(), id_professor_entry.get(), id_turma_entry.get()
+    )).pack(side=tk.LEFT)
+
+    # Botões para gerar e exportar horários
+    tk.Button(janela, text="Gerar Horários", command=gerar_horarios).pack(pady=10)
+    tk.Button(janela, text="Exportar para PDF", command=exportar_pdf).pack(pady=10)
+
+    janela.mainloop()
+
+# Executa a criação de tabelas e abre a interface gráfica
+if __name__ == "__main__":
+    criar_tabelas()
+    interface_grafica()
