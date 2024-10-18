@@ -1,0 +1,25 @@
+# Organização de Horários
+
+Este projeto é um sistema para organização de horários de professores, turmas e disciplinas, utilizando Python com SQLite e Tkinter para a interface gráfica.
+
+## Funcionalidades
+
+- Cadastro de professores
+- Cadastro de turmas
+- Cadastro de disciplinas
+- Geração automática de horários
+- Exportação de horários em formato PDF
+
+## Tecnologias Utilizadas
+
+- Python
+- SQLite
+- Tkinter
+- FPDF
+
+## Como Usar
+
+1. Clone o repositório.
+2. Instale as dependências necessárias:
+   ```bash
+   pip install fpdf pillow
